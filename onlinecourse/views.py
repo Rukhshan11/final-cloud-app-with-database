@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 # <HINT> Import any new Models here
-from .models import Course, Enrollment, Choice, Question, Submission
+from .models import Course, Enrollment, Choice, Question, Submission, Lesson
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -127,12 +127,14 @@ def extract_answers(request):
 
 
 def submit(request, course_id):
-    enrollment = Enrollment.objects.get(user=request.user, course=course_id)
-    submission = Submission.objects.create(enrollment=enrollment)
+    user = request.user
+    course = Course.objects.get(pk=course_id)
+    enroll = Enrollment.objects.filter(user=user, course=course).get()
     submitted_answers = extract_answers(request)
+    submission = Submission.objects.create(enrollment_id=enroll.id)
     submission.choices.set(submitted_answers)
 
-    return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result', args=(course_id, submission.pk)))
+    return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result', args=(course_id, submission.id)))
 
 
 # <HINT> Create an exam result view to check if learner passed exam and show their question results and result for each question,
@@ -144,7 +146,8 @@ def submit(request, course_id):
 def show_exam_result(request, course_id, submission_id):
     submission = Submission.objects.get(pk=submission_id)
     course = Course.objects.get(pk=course_id)
-    question = Question.objects.filter(course=course)
+    lesson = Lesson.objects.get(course=course)
+    question = Question.objects.filter(course=lesson)
     context = {}
     context['Submission'] = []
     all_score = 0
@@ -158,5 +161,5 @@ def show_exam_result(request, course_id, submission_id):
     context['grade'] = grade
     context['course'] = course
 
-    return redirect(request, 'onlinecourse/exam_result_bootstrap', context)
+    return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
 
